@@ -1,0 +1,79 @@
+use crate::components::*;
+use crate::score::Scored;
+use bevy::math::bounding::Aabb2d;
+use bevy::prelude::*;
+
+#[derive(Component)]
+#[require(
+    Position,
+    Velocity = Velocity(Vec2::new(0.0, MIN_SPEED)),
+    Collider = Collider(Rectangle::new(BALL_SIZE, BALL_SIZE))
+)]
+pub struct Ball;
+
+const BALL_SIZE: f32 = 30.0;
+const MIN_SPEED: f32 = 30.0;
+const MAX_SPEED: f32 = 80.0;
+const SPEED_MULT: f32 = 1.1;
+const BALL_SHAPE: Circle = Circle::new(BALL_SIZE);
+const BALL_COLOR: Color = Color::srgb(1.0, 0., 0.);
+
+pub fn spawn_ball(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+) {
+    let mesh = meshes.add(BALL_SHAPE);
+    let material = materials.add(BALL_COLOR);
+
+    commands.spawn((Ball, Mesh2d(mesh), MeshMaterial2d(material)));
+}
+
+pub fn move_ball(ball: Single<(&mut Position, &Velocity), With<Ball>>) {
+    let (mut position, velocity) = ball.into_inner();
+    position.0 += velocity.0;
+}
+
+pub fn reset_ball(_event: On<Scored>, ball: Single<(&mut Position, &mut Velocity), With<Ball>>) {
+    let (mut ball_position, mut ball_velocity) = ball.into_inner();
+    ball_position.0 = Vec2::ZERO;
+    ball_velocity.0 = Vec2::new(MIN_SPEED, 0.);
+}
+
+fn limit_speed(velocity: &mut Vec2, max_speed: f32) {
+    let speed = velocity.length();
+    if speed > max_speed {
+        *velocity = velocity.normalize_or_zero() * max_speed;
+    }
+}
+
+pub fn handle_collisions(
+    ball: Single<(&mut Velocity, &Position, &Collider), With<Ball>>,
+    other_things: Query<(&Position, &Collider), Without<Ball>>,
+) {
+    let (mut ball_velocity, ball_position, ball_collider) = ball.into_inner();
+
+    for (other_position, other_collider) in &other_things {
+        if let Some(collision) = crate::collisions::collide_with_side(
+            Aabb2d::new(ball_position.0, ball_collider.half_size()),
+            Aabb2d::new(other_position.0, other_collider.half_size()),
+        ) {
+            match collision {
+                Collision::Left => {
+                    ball_velocity.0.x *= -SPEED_MULT;
+                }
+                Collision::Right => {
+                    ball_velocity.0.x *= -SPEED_MULT;
+                }
+                Collision::Top => {
+                    ball_velocity.0.y *= -SPEED_MULT;
+                }
+                Collision::Bottom => {
+                    ball_velocity.0.y *= -SPEED_MULT;
+                }
+            }
+
+            limit_speed(&mut ball_velocity.0, MAX_SPEED);
+        }
+    }
+}
