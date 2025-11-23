@@ -13,14 +13,16 @@ pub fn plugin(app: &mut App) {
     RigidBody::Kinematic,
     LinearVelocity(Vec2::new(0.0, -MIN_SPEED)),
     Collider::circle(BALL_SIZE),
-    CollisionEventsEnabled
+    CollisionEventsEnabled,
+    SweptCcd::default(),
+    TransformInterpolation
 )]
 pub struct Ball;
 
 const BALL_SIZE: f32 = 30.0;
 const MIN_SPEED: f32 = 500.0;
-const MAX_SPEED: f32 = 1000.0;
-const SPEED_MULT: f32 = 1.1;
+const MAX_SPEED: f32 = 20000.0;
+const SPEED_MULT: f32 = 1.2;
 
 const BALL_SHAPE: Circle = Circle::new(BALL_SIZE);
 const BALL_COLOR: Color = Color::srgb(1.0, 0., 0.);
@@ -43,10 +45,12 @@ fn bounce_ball(
 ) {
     let (entity, mut linear_velocity) = ball.into_inner();
     for contact_pair in collisions.collisions_with(entity) {
-        let normal = contact_pair.max_normal_impulse();
-        let dot_product = linear_velocity.dot(normal);
-        linear_velocity.0 -= 2.0 * dot_product * normal;
-        linear_velocity.0 *= SPEED_MULT;
+        for manifold in &contact_pair.manifolds {
+            let normal = manifold.normal;
+            let dot_product = linear_velocity.dot(normal);
+            linear_velocity.0 -= 2.0 * dot_product * normal;
+            linear_velocity.0 *= SPEED_MULT;
+        }
     }
 
     limit_speed(&mut linear_velocity);

@@ -4,6 +4,7 @@ use bevy::prelude::*;
 pub fn plugin(app: &mut App) {
     app.add_plugins((DefaultPlugins, PhysicsPlugins::default()))
         .insert_resource(Gravity(Vec2::NEG_Y * 1000.0))
+        .insert_resource(Time::<Fixed>::from_hz(64.0))
         .add_systems(Startup, spawn_camera);
 }
 

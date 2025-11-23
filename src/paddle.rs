@@ -1,5 +1,6 @@
 use crate::ball::Ball;
 use crate::components::*;
+use avian2d::prelude::*;
 use bevy::prelude::*;
 
 pub fn plugin(app: &mut App) {
@@ -16,7 +17,7 @@ pub fn plugin(app: &mut App) {
 pub struct Paddle;
 
 #[derive(Component)]
-#[require(PongPosition, PongCollider)]
+#[require(RigidBody::Static)]
 pub struct Gutter;
 
 #[derive(Component)]
@@ -25,7 +26,9 @@ pub struct Player;
 #[derive(Component)]
 pub struct Ai;
 
-const PADDLE_SHAPE: Rectangle = Rectangle::new(20., 500.);
+const PADDLE_WIDTH: f32 = 50.0;
+const PADDLE_HEIGHT: f32 = 300.0;
+const PADDLE_SHAPE: Rectangle = Rectangle::new(PADDLE_WIDTH, PADDLE_HEIGHT);
 const PADDLE_COLOR: Color = Color::srgb(0., 1., 0.);
 
 fn spawn_paddles(
@@ -38,7 +41,6 @@ fn spawn_paddles(
     let material = materials.add(PADDLE_COLOR);
     let half_window_size = window.resolution.size() / 2.;
     let padding = 20.;
-
     let player_position = Vec2::new(-half_window_size.x + padding, 0.);
 
     commands.spawn((
@@ -70,29 +72,26 @@ fn spawn_gutters(
     window: Single<&Window>,
 ) {
     let material = materials.add(GUTTER_COLOR);
-    let padding = 20.;
 
     let gutter_shape = Rectangle::new(window.resolution.width(), GUTTER_HEIGHT);
     let mesh = meshes.add(gutter_shape);
 
-    let top_gutter_position = Vec2::new(0., window.resolution.height() / 2. - padding);
+    let half_window = window.resolution.height() / 2.;
 
     commands.spawn((
         Gutter,
+        Position::from_xy(0.0, half_window),
+        Collider::half_space(Vec2::NEG_Y),
         Mesh2d(mesh.clone()),
         MeshMaterial2d(material.clone()),
-        PongPosition(top_gutter_position),
-        PongCollider(gutter_shape),
     ));
 
-    let bottom_gutter_position = Vec2::new(0., -window.resolution.height() / 2. + padding);
-
     commands.spawn((
         Gutter,
+        Position::from_xy(0.0, -half_window),
+        Collider::half_space(Vec2::Y),
         Mesh2d(mesh.clone()),
         MeshMaterial2d(material.clone()),
-        PongPosition(bottom_gutter_position),
-        PongCollider(gutter_shape),
     ));
 }
 
