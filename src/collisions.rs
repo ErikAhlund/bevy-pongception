@@ -1,4 +1,4 @@
-use crate::components::{Collider, Collision, Position};
+use crate::components::{PongCollider, PongCollision, PongPosition};
 use crate::paddle::Paddle;
 use bevy::math::bounding::{Aabb2d, BoundingVolume, IntersectsVolume};
 use bevy::prelude::*;
@@ -7,13 +7,13 @@ pub(super) fn plugin(app: &mut App) {
     app.add_systems(FixedUpdate, (project_positions, constrain_paddle_position));
 }
 
-pub fn project_positions(positions: Query<(&mut Transform, &Position)>) {
+pub fn project_positions(positions: Query<(&mut Transform, &PongPosition)>) {
     for (mut transform, position) in positions {
         transform.translation = position.0.extend(0.);
     }
 }
 
-pub fn collide_with_side(ball: Aabb2d, wall: Aabb2d) -> Option<Collision> {
+pub fn collide_with_side(ball: Aabb2d, wall: Aabb2d) -> Option<PongCollision> {
     if !ball.intersects(&wall) {
         return None;
     }
@@ -23,22 +23,25 @@ pub fn collide_with_side(ball: Aabb2d, wall: Aabb2d) -> Option<Collision> {
 
     let side = if offset.x.abs() > offset.y.abs() {
         if offset.x < 0. {
-            Collision::Left
+            PongCollision::Left
         } else {
-            Collision::Right
+            PongCollision::Right
         }
     } else if offset.y > 0. {
-        Collision::Top
+        PongCollision::Top
     } else {
-        Collision::Bottom
+        PongCollision::Bottom
     };
 
     Some(side)
 }
 
 pub fn constrain_paddle_position(
-    mut paddles: Query<(&mut Position, &Collider), (With<Paddle>, Without<crate::paddle::Gutter>)>,
-    gutters: Query<(&Position, &Collider), (With<crate::paddle::Gutter>, Without<Paddle>)>,
+    mut paddles: Query<
+        (&mut PongPosition, &PongCollider),
+        (With<Paddle>, Without<crate::paddle::Gutter>),
+    >,
+    gutters: Query<(&PongPosition, &PongCollider), (With<crate::paddle::Gutter>, Without<Paddle>)>,
 ) {
     for (mut paddle_position, paddle_collider) in &mut paddles {
         for (gutter_position, gutter_collider) in &gutters {
@@ -47,12 +50,12 @@ pub fn constrain_paddle_position(
 
             if let Some(collision) = collide_with_side(paddle_aabb, gutter_aabb) {
                 match collision {
-                    Collision::Top => {
+                    PongCollision::Top => {
                         paddle_position.0.y = gutter_position.0.y
                             + gutter_collider.half_size().y
                             + paddle_collider.half_size().y;
                     }
-                    Collision::Bottom => {
+                    PongCollision::Bottom => {
                         paddle_position.0.y = gutter_position.0.y
                             - gutter_collider.half_size().y
                             - paddle_collider.half_size().y;

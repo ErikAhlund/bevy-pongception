@@ -9,14 +9,14 @@ pub fn plugin(app: &mut App) {
 
 #[derive(Component)]
 #[require(
-    Position,
-    Velocity,
-    Collider = Collider(PADDLE_SHAPE)
+    PongPosition,
+    PongVelocity,
+    PongCollider = PongCollider(PADDLE_SHAPE)
 )]
 pub struct Paddle;
 
 #[derive(Component)]
-#[require(Position, Collider)]
+#[require(PongPosition, PongCollider)]
 pub struct Gutter;
 
 #[derive(Component)]
@@ -46,7 +46,7 @@ fn spawn_paddles(
         Paddle,
         Mesh2d(mesh.clone()),
         MeshMaterial2d(material.clone()),
-        Position(player_position),
+        PongPosition(player_position),
     ));
 
     let ai_position = Vec2::new(half_window_size.x - padding, 0.);
@@ -56,7 +56,7 @@ fn spawn_paddles(
         Paddle,
         Mesh2d(mesh.clone()),
         MeshMaterial2d(material.clone()),
-        Position(ai_position),
+        PongPosition(ai_position),
     ));
 }
 
@@ -81,8 +81,8 @@ fn spawn_gutters(
         Gutter,
         Mesh2d(mesh.clone()),
         MeshMaterial2d(material.clone()),
-        Position(top_gutter_position),
-        Collider(gutter_shape),
+        PongPosition(top_gutter_position),
+        PongCollider(gutter_shape),
     ));
 
     let bottom_gutter_position = Vec2::new(0., -window.resolution.height() / 2. + padding);
@@ -91,8 +91,8 @@ fn spawn_gutters(
         Gutter,
         Mesh2d(mesh.clone()),
         MeshMaterial2d(material.clone()),
-        Position(bottom_gutter_position),
-        Collider(gutter_shape),
+        PongPosition(bottom_gutter_position),
+        PongCollider(gutter_shape),
     ));
 }
 
@@ -100,7 +100,7 @@ const PADDLE_SPEED: f32 = 5.;
 
 fn handle_player_input(
     keyboard_input: Res<ButtonInput<KeyCode>>,
-    mut paddle_velocity: Single<&mut Velocity, With<Player>>,
+    mut paddle_velocity: Single<&mut PongVelocity, With<Player>>,
 ) {
     if keyboard_input.pressed(KeyCode::ArrowUp) {
         paddle_velocity.0.y = PADDLE_SPEED;
@@ -111,13 +111,16 @@ fn handle_player_input(
     }
 }
 
-fn move_paddles(mut paddles: Query<(&mut Position, &Velocity), With<Paddle>>) {
+fn move_paddles(mut paddles: Query<(&mut PongPosition, &PongVelocity), With<Paddle>>) {
     for (mut position, velocity) in &mut paddles {
         position.0 += velocity.0;
     }
 }
 
-fn move_ai(ai: Single<(&mut Velocity, &Position), With<Ai>>, ball: Single<&Position, With<Ball>>) {
+fn move_ai(
+    ai: Single<(&mut PongVelocity, &PongPosition), With<Ai>>,
+    ball: Single<&PongPosition, With<Ball>>,
+) {
     let (mut velocity, position) = ai.into_inner();
     let a_to_b = ball.0 - position.0;
     velocity.0.y = a_to_b.y.signum() * PADDLE_SPEED;

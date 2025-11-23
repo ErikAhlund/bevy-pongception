@@ -1,5 +1,5 @@
 use crate::ball::Ball;
-use crate::components::{Collider, Position};
+use crate::components::{PongCollider, PongPosition};
 use crate::paddle::{Ai, Player};
 use bevy::prelude::*;
 
@@ -29,7 +29,7 @@ pub struct PlayerScore;
 pub struct AiScore;
 
 fn detect_goal(
-    ball: Single<(&Position, &Collider), With<Ball>>,
+    ball: Single<(&PongPosition, &PongCollider), With<Ball>>,
     player: Single<Entity, (With<Player>, Without<Ai>)>,
     ai: Single<Entity, (With<Ai>, Without<Player>)>,
     window: Single<&Window>,

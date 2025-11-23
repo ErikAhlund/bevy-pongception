@@ -1,5 +1,6 @@
 use crate::components::*;
 use crate::score::Scored;
+use avian2d::prelude::*;
 use bevy::math::bounding::Aabb2d;
 use bevy::prelude::*;
 
@@ -11,9 +12,11 @@ pub fn plugin(app: &mut App) {
 
 #[derive(Component)]
 #[require(
-    Position,
-    Velocity = Velocity(Vec2::new(0.0, MIN_SPEED)),
-    Collider = Collider(Rectangle::new(BALL_SIZE, BALL_SIZE))
+    PongPosition,
+    PongVelocity(Vec2::new(0.0, MIN_SPEED)),
+    PongCollider(Rectangle::new(BALL_SIZE, BALL_SIZE)),
+    RigidBody::Kinematic,
+    Collider::circle(BALL_SIZE)
 )]
 pub struct Ball;
 
@@ -35,12 +38,15 @@ fn spawn_ball(
     commands.spawn((Ball, Mesh2d(mesh), MeshMaterial2d(material)));
 }
 
-fn move_ball(ball: Single<(&mut Position, &Velocity), With<Ball>>) {
+fn move_ball(ball: Single<(&mut PongPosition, &PongVelocity), With<Ball>>) {
     let (mut position, velocity) = ball.into_inner();
     position.0 += velocity.0;
 }
 
-fn reset_ball(_event: On<Scored>, ball: Single<(&mut Position, &mut Velocity), With<Ball>>) {
+fn reset_ball(
+    _event: On<Scored>,
+    ball: Single<(&mut PongPosition, &mut PongVelocity), With<Ball>>,
+) {
     let (mut ball_position, mut ball_velocity) = ball.into_inner();
     ball_position.0 = Vec2::ZERO;
     ball_velocity.0 = Vec2::new(MIN_SPEED, 0.);
@@ -54,8 +60,8 @@ fn limit_speed(velocity: &mut Vec2, max_speed: f32) {
 }
 
 fn handle_collisions(
-    ball: Single<(&mut Velocity, &Position, &Collider), With<Ball>>,
-    other_things: Query<(&Position, &Collider), Without<Ball>>,
+    ball: Single<(&mut PongVelocity, &PongPosition, &PongCollider), With<Ball>>,
+    other_things: Query<(&PongPosition, &PongCollider), Without<Ball>>,
 ) {
     let (mut ball_velocity, ball_position, ball_collider) = ball.into_inner();
 
@@ -65,16 +71,16 @@ fn handle_collisions(
             Aabb2d::new(other_position.0, other_collider.half_size()),
         ) {
             match collision {
-                Collision::Left => {
+                PongCollision::Left => {
                     ball_velocity.0.x *= -SPEED_MULT;
                 }
-                Collision::Right => {
+                PongCollision::Right => {
                     ball_velocity.0.x *= -SPEED_MULT;
                 }
-                Collision::Top => {
+                PongCollision::Top => {
                     ball_velocity.0.y *= -SPEED_MULT;
                 }
-                Collision::Bottom => {
+                PongCollision::Bottom => {
                     ball_velocity.0.y *= -SPEED_MULT;
                 }
             }

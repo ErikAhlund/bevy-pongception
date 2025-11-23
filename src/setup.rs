@@ -1,7 +1,9 @@
+use avian2d::prelude::*;
 use bevy::prelude::*;
 
 pub fn plugin(app: &mut App) {
-    app.insert_resource(Time::<Fixed>::from_hz(60.0))
+    app.add_plugins((DefaultPlugins, PhysicsPlugins::default()))
+        .insert_resource(Time::<Fixed>::from_hz(60.0))
         .add_systems(Startup, spawn_camera);
 }
 
