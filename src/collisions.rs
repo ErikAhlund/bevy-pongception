@@ -1,68 +1,56 @@
-use crate::components::{PongCollider, PongCollision, PongPosition};
-use crate::paddle::Paddle;
-use bevy::math::bounding::{Aabb2d, BoundingVolume, IntersectsVolume};
+use avian2d::prelude::*;
 use bevy::prelude::*;
 
 pub(super) fn plugin(app: &mut App) {
-    app.add_systems(FixedUpdate, (project_positions, constrain_paddle_position));
+    app.add_observer(bounce_objects);
 }
 
-pub fn project_positions(positions: Query<(&mut Transform, &PongPosition)>) {
-    for (mut transform, position) in positions {
-        transform.translation = position.0.extend(0.);
-    }
-}
+#[derive(Component, Default)]
+#[require(CollisionEventsEnabled)]
+pub struct BounceCollider(pub f32);
 
-pub fn collide_with_side(ball: Aabb2d, wall: Aabb2d) -> Option<PongCollision> {
-    if !ball.intersects(&wall) {
-        return None;
-    }
+fn bounce_objects(
+    event: On<CollisionStart>,
+    collisions: Collisions,
+    bounce_query: Query<&BounceCollider>,
+    mut velocity_query: Query<&mut LinearVelocity>,
+) {
+    let collider1 = event.collider1;
+    let collider2 = event.collider2;
 
-    let closest_point = wall.closest_point(ball.center());
-    let offset = ball.center() - closest_point;
-
-    let side = if offset.x.abs() > offset.y.abs() {
-        if offset.x < 0. {
-            PongCollision::Left
-        } else {
-            PongCollision::Right
-        }
-    } else if offset.y > 0. {
-        PongCollision::Top
+    // Symmetric: Check which is bounce, which has velocity to modify
+    let (bounce_entity, target_entity) = if bounce_query.contains(collider1) {
+        (collider1, collider2)
+    } else if bounce_query.contains(collider2) {
+        (collider2, collider1)
     } else {
-        PongCollision::Bottom
+        return;
     };
 
-    Some(side)
-}
+    let Ok(bounce) = bounce_query.get(bounce_entity) else {
+        return;
+    };
 
-pub fn constrain_paddle_position(
-    mut paddles: Query<
-        (&mut PongPosition, &PongCollider),
-        (With<Paddle>, Without<crate::paddle::Gutter>),
-    >,
-    gutters: Query<(&PongPosition, &PongCollider), (With<crate::paddle::Gutter>, Without<Paddle>)>,
-) {
-    for (mut paddle_position, paddle_collider) in &mut paddles {
-        for (gutter_position, gutter_collider) in &gutters {
-            let paddle_aabb = Aabb2d::new(paddle_position.0, paddle_collider.half_size());
-            let gutter_aabb = Aabb2d::new(gutter_position.0, gutter_collider.half_size());
+    let Ok(mut linear_velocity) = velocity_query.get_mut(target_entity) else {
+        return;
+    };
 
-            if let Some(collision) = collide_with_side(paddle_aabb, gutter_aabb) {
-                match collision {
-                    PongCollision::Top => {
-                        paddle_position.0.y = gutter_position.0.y
-                            + gutter_collider.half_size().y
-                            + paddle_collider.half_size().y;
-                    }
-                    PongCollision::Bottom => {
-                        paddle_position.0.y = gutter_position.0.y
-                            - gutter_collider.half_size().y
-                            - paddle_collider.half_size().y;
-                    }
-                    _ => {}
-                }
-            }
-        }
+    // Get the specific contact pair for this event
+    let Some(contact_pair) = collisions.get(collider1, collider2) else {
+        return;
+    };
+
+    let Some(manifold) = contact_pair.manifolds.first() else {
+        return;
+    };
+
+    let normal = manifold.normal;
+    let dot_product = linear_velocity.0.dot(normal);
+    if dot_product > 0.0 {
+        return;
     }
+
+    // Only on approach (safety for ongoing contacts)
+    println!("Bounce! Velocity: {:?}", linear_velocity.0);
+    linear_velocity.0 = linear_velocity.0.reflect(normal) * bounce.0;
 }

@@ -1,3 +1,4 @@
+use super::collisions::BounceCollider;
 use crate::ball::Ball;
 use crate::components::*;
 use avian2d::prelude::*;
@@ -17,7 +18,7 @@ pub fn plugin(app: &mut App) {
 pub struct Paddle;
 
 #[derive(Component)]
-#[require(RigidBody::Static)]
+#[require(RigidBody::Static, BounceCollider)]
 pub struct Gutter;
 
 #[derive(Component)]
@@ -80,6 +81,7 @@ fn spawn_gutters(
 
     commands.spawn((
         Gutter,
+        BounceCollider(1.2),
         Position::from_xy(0.0, half_window),
         Collider::half_space(Vec2::NEG_Y),
         Mesh2d(mesh.clone()),
@@ -88,6 +90,7 @@ fn spawn_gutters(
 
     commands.spawn((
         Gutter,
+        BounceCollider(1.2),
         Position::from_xy(0.0, -half_window),
         Collider::half_space(Vec2::Y),
         Mesh2d(mesh.clone()),
