@@ -1,9 +1,19 @@
 use crate::components::{Collider, Collision, Position};
 use crate::paddle::Paddle;
 use bevy::math::bounding::{Aabb2d, BoundingVolume, IntersectsVolume};
-use bevy::prelude::{Query, With, Without};
+use bevy::prelude::*;
 
-pub(crate) fn collide_with_side(ball: Aabb2d, wall: Aabb2d) -> Option<Collision> {
+pub(super) fn plugin(app: &mut App) {
+    app.add_systems(FixedUpdate, (project_positions, constrain_paddle_position));
+}
+
+pub fn project_positions(positions: Query<(&mut Transform, &Position)>) {
+    for (mut transform, position) in positions {
+        transform.translation = position.0.extend(0.);
+    }
+}
+
+pub fn collide_with_side(ball: Aabb2d, wall: Aabb2d) -> Option<Collision> {
     if !ball.intersects(&wall) {
         return None;
     }

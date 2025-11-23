@@ -3,6 +3,14 @@ name = "pong"
 version = "0.1.0"
 edition = "2024"
 
+[lib]  # Makes it a lib crate
+name = "pong"
+path = "src/game.rs"
+
+[[bin]]
+name = "pong"
+path = "src/main.rs"
+
 # Enable a small amount of optimization in the dev profile.
 [profile.dev]
 opt-level = 1

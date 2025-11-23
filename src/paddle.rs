@@ -2,6 +2,11 @@ use crate::ball::Ball;
 use crate::components::*;
 use bevy::prelude::*;
 
+pub fn plugin(app: &mut App) {
+    app.add_systems(Startup, (spawn_paddles, spawn_gutters))
+        .add_systems(FixedUpdate, (move_paddles, handle_player_input, move_ai));
+}
+
 #[derive(Component)]
 #[require(
     Position,
@@ -23,7 +28,7 @@ pub struct Ai;
 const PADDLE_SHAPE: Rectangle = Rectangle::new(20., 500.);
 const PADDLE_COLOR: Color = Color::srgb(0., 1., 0.);
 
-pub fn spawn_paddles(
+fn spawn_paddles(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
@@ -58,7 +63,7 @@ pub fn spawn_paddles(
 const GUTTER_COLOR: Color = Color::srgb(0., 0., 1.);
 const GUTTER_HEIGHT: f32 = 20.;
 
-pub fn spawn_gutters(
+fn spawn_gutters(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
@@ -93,7 +98,7 @@ pub fn spawn_gutters(
 
 const PADDLE_SPEED: f32 = 5.;
 
-pub fn handle_player_input(
+fn handle_player_input(
     keyboard_input: Res<ButtonInput<KeyCode>>,
     mut paddle_velocity: Single<&mut Velocity, With<Player>>,
 ) {
@@ -106,16 +111,13 @@ pub fn handle_player_input(
     }
 }
 
-pub fn move_paddles(mut paddles: Query<(&mut Position, &Velocity), With<Paddle>>) {
+fn move_paddles(mut paddles: Query<(&mut Position, &Velocity), With<Paddle>>) {
     for (mut position, velocity) in &mut paddles {
         position.0 += velocity.0;
     }
 }
 
-pub fn move_ai(
-    ai: Single<(&mut Velocity, &Position), With<Ai>>,
-    ball: Single<&Position, With<Ball>>,
-) {
+fn move_ai(ai: Single<(&mut Velocity, &Position), With<Ai>>, ball: Single<&Position, With<Ball>>) {
     let (mut velocity, position) = ai.into_inner();
     let a_to_b = ball.0 - position.0;
     velocity.0.y = a_to_b.y.signum() * PADDLE_SPEED;

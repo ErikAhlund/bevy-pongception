@@ -3,16 +3,23 @@ use crate::components::{Collider, Position};
 use crate::paddle::{Ai, Player};
 use bevy::prelude::*;
 
+pub fn plugin(app: &mut App) {
+    app.insert_resource(Score { player: 0, ai: 0 })
+        .add_systems(Startup, spawn_scoreboard)
+        .add_systems(FixedUpdate, (detect_goal, update_scoreboard))
+        .add_observer(update_score);
+}
+
 #[derive(Resource)]
-pub struct Score {
-    pub(crate) player: u32,
-    pub(crate) ai: u32,
+struct Score {
+    player: u32,
+    ai: u32,
 }
 
 #[derive(EntityEvent)]
-pub(crate) struct Scored {
+pub struct Scored {
     #[event_target]
-    scorer: Entity,
+    pub scorer: Entity,
 }
 
 #[derive(Component)]
@@ -21,7 +28,7 @@ pub struct PlayerScore;
 #[derive(Component)]
 pub struct AiScore;
 
-pub fn detect_goal(
+fn detect_goal(
     ball: Single<(&Position, &Collider), With<Ball>>,
     player: Single<Entity, (With<Player>, Without<Ai>)>,
     ai: Single<Entity, (With<Ai>, Without<Player>)>,
@@ -40,7 +47,7 @@ pub fn detect_goal(
     }
 }
 
-pub fn update_scoreboard(
+fn update_scoreboard(
     mut player_score: Single<&mut Text, (With<PlayerScore>, Without<AiScore>)>,
     mut ai_score: Single<&mut Text, (With<AiScore>, Without<PlayerScore>)>,
     score: Res<Score>,
@@ -51,7 +58,7 @@ pub fn update_scoreboard(
     }
 }
 
-pub fn spawn_scoreboard(mut commands: Commands) {
+fn spawn_scoreboard(mut commands: Commands) {
     let container = Node {
         width: percent(100.0),
         height: percent(100.0),
@@ -101,7 +108,7 @@ pub fn spawn_scoreboard(mut commands: Commands) {
     ));
 }
 
-pub fn update_score(
+fn update_score(
     event: On<Scored>,
     mut score: ResMut<Score>,
     is_ai: Query<&Ai>,
