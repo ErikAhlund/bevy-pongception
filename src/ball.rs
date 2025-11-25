@@ -42,9 +42,11 @@ fn reset_ball(_event: On<Scored>, ball: Single<(&mut Position, &mut LinearVeloci
     ball_velocity.0 = Vec2::new(MIN_SPEED, 0.);
 }
 
-fn limit_speed(mut ball_velocity: Single<&mut LinearVelocity, With<Ball>>) {
-    let speed = ball_velocity.length();
-    if speed > MAX_SPEED {
-        ball_velocity.0 = ball_velocity.0.normalize_or_zero() * MAX_SPEED;
+fn limit_speed(ball_query: Query<&mut LinearVelocity, With<Ball>>) {
+    for mut ball_velocity in ball_query {
+        let speed = ball_velocity.length();
+        if speed > MAX_SPEED {
+            ball_velocity.0 = ball_velocity.0.normalize_or_zero() * MAX_SPEED;
+        }
     }
 }

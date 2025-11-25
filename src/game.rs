@@ -8,8 +8,6 @@ mod paddle;
 mod score;
 mod setup;
 
-mod components;
-
 pub fn plugin(app: &mut App) {
     app.add_plugins(setup::plugin)
         .add_plugins(ball::plugin)

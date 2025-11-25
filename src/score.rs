@@ -1,19 +1,21 @@
 use crate::ball::Ball;
-use crate::components::{PongCollider, PongPosition};
 use crate::paddle::{Ai, Player};
 use bevy::prelude::*;
 
 pub fn plugin(app: &mut App) {
-    app.insert_resource(Score { player: 0, ai: 0 })
-        .add_systems(Startup, spawn_scoreboard)
-        .add_systems(FixedUpdate, (detect_goal, update_scoreboard))
-        .add_observer(update_score);
+    app.insert_resource(Score {
+        player1: 0,
+        player2: 0,
+    })
+    .add_systems(Startup, spawn_scoreboard)
+    .add_systems(FixedUpdate, (update_scoreboard))
+    .add_observer(update_score);
 }
 
 #[derive(Resource)]
 struct Score {
-    player: u32,
-    ai: u32,
+    player1: u32,
+    player2: u32,
 }
 
 #[derive(EntityEvent)]
@@ -28,33 +30,14 @@ pub struct PlayerScore;
 #[derive(Component)]
 pub struct AiScore;
 
-fn detect_goal(
-    ball: Single<(&PongPosition, &PongCollider), With<Ball>>,
-    player: Single<Entity, (With<Player>, Without<Ai>)>,
-    ai: Single<Entity, (With<Ai>, Without<Player>)>,
-    window: Single<&Window>,
-    mut commands: Commands,
-) {
-    let (ball_position, ball_collider) = ball.into_inner();
-    let half_window_size = window.resolution.size() / 2.;
-
-    if ball_position.0.x - ball_collider.half_size().x > half_window_size.x {
-        commands.trigger(Scored { scorer: *player });
-    }
-
-    if ball_position.0.x + ball_collider.half_size().x < -half_window_size.x {
-        commands.trigger(Scored { scorer: *ai });
-    }
-}
-
 fn update_scoreboard(
     mut player_score: Single<&mut Text, (With<PlayerScore>, Without<AiScore>)>,
     mut ai_score: Single<&mut Text, (With<AiScore>, Without<PlayerScore>)>,
     score: Res<Score>,
 ) {
     if score.is_changed() {
-        player_score.0 = score.player.to_string();
-        ai_score.0 = score.ai.to_string();
+        player_score.0 = score.player1.to_string();
+        ai_score.0 = score.player2.to_string();
     }
 }
 
@@ -115,12 +98,12 @@ fn update_score(
     is_player: Query<&Player>,
 ) {
     if is_ai.get(event.scorer).is_ok() {
-        score.ai += 1;
-        info!("AI scored! {} - {}", score.player, score.ai);
+        score.player2 += 1;
+        info!("AI scored! {} - {}", score.player1, score.player2);
     }
 
     if is_player.get(event.scorer).is_ok() {
-        score.player += 1;
-        info!("Player scored! {} - {}", score.player, score.ai);
+        score.player1 += 1;
+        info!("Player scored! {} - {}", score.player1, score.player2);
     }
 }
