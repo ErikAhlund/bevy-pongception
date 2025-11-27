@@ -20,5 +20,5 @@ opt-level = 1
 opt-level = 3
 
 [dependencies]
-avian2d = "0.4.1"
+avian2d = { git = "https://github.com/avianphysics/avian", branch = "main" }
 bevy = "0.17.3"

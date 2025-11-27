@@ -1,33 +1,28 @@
-use super::collisions::*;
 use crate::ball::Ball;
+use avian2d::math::{AdjustPrecision, AsF32};
 use avian2d::prelude::*;
 use bevy::prelude::*;
 
 pub fn plugin(app: &mut App) {
     app.add_systems(Startup, (spawn_paddles, spawn_gutters))
-        .add_systems(FixedUpdate, (move_ai));
+        .add_systems(FixedUpdate, (move_ai, move_paddles));
 }
 
 const PADDLE_WIDTH: f32 = 50.0;
-const PADDLE_HEIGHT: f32 = 300.0;
+const PADDLE_HEIGHT: f32 = 200.0;
 
-#[derive(Component)]
+#[derive(Component, Default)]
 #[require(
-    RigidBody::Dynamic,
-    ShapeCaster::new(
-        Collider::rectangle(PADDLE_WIDTH, PADDLE_HEIGHT),
-        Vec2::ZERO, // Offset
-        0.0,        // Rotation
-        Dir2::Y     // Initial direction (system will update this)
-    ),
+    RigidBody::Kinematic,
     Collider::rectangle(PADDLE_WIDTH, PADDLE_HEIGHT),
-    // 4. Our new Component
-    LinearVelocity(Vec2::Y * 100.0)
+    TransformInterpolation
 )]
-pub struct Paddle;
+pub struct Paddle {
+    pub velocity: Vec2,
+}
 
 #[derive(Component)]
-#[require(RigidBody::Static, BounceCollider)]
+#[require(RigidBody::Static)]
 pub struct Gutter;
 
 #[derive(Component)]
@@ -53,7 +48,7 @@ fn spawn_paddles(
 
     commands.spawn((
         Player,
-        Paddle,
+        Paddle::default(),
         Mesh2d(mesh.clone()),
         MeshMaterial2d(material.clone()),
         Position(player_position),
@@ -62,7 +57,7 @@ fn spawn_paddles(
     let ai_position = Vec2::new(half_window_size.x - padding, 0.);
     commands.spawn((
         Ai,
-        Paddle,
+        Paddle::default(),
         Mesh2d(mesh.clone()),
         MeshMaterial2d(material.clone()),
         Position(ai_position),
@@ -87,7 +82,6 @@ fn spawn_gutters(
 
     commands.spawn((
         Gutter,
-        BounceCollider(1.2),
         Position::from_xy(0.0, half_window),
         Collider::half_space(Vec2::NEG_Y),
         Mesh2d(mesh.clone()),
@@ -96,7 +90,6 @@ fn spawn_gutters(
 
     commands.spawn((
         Gutter,
-        BounceCollider(1.2),
         Position::from_xy(0.0, -half_window),
         Collider::half_space(Vec2::Y),
         Mesh2d(mesh.clone()),
@@ -104,13 +97,52 @@ fn spawn_gutters(
     ));
 }
 
-const PADDLE_SPEED: f32 = 500.;
-fn move_ai(
-    ai: Single<(&mut LinearVelocity, &Position, &RigidBody), With<Ai>>,
-    ball: Single<&Position, With<Ball>>,
-) {
-    let (mut velocity, position, body) = ai.into_inner();
+const PADDLE_MAX_SPEED: f32 = 1000.0; // Maximum speed when far away
+const PADDLE_MIN_SPEED: f32 = 10.0; // Minimum speed when getting close
+const PADDLE_DEADZONE: f32 = 5.0; // Stop completely within this range
 
-    let a_to_b = ball.0 - position.0;
-    velocity.0.y = PADDLE_SPEED;
+fn move_paddles(
+    paddles: Query<(Entity, &mut Transform, &mut Paddle, &Collider), With<Paddle>>,
+    move_and_slide: MoveAndSlide,
+    time: Res<Time>,
+) {
+    for (entity, mut transform, mut player, collider) in paddles {
+        // Perform move and slide
+        let MoveAndSlideOutput {
+            position,
+            projected_velocity: velocity,
+        } = move_and_slide.move_and_slide(
+            collider,
+            transform.translation.xy().adjust_precision(),
+            transform.rotation.to_euler(EulerRot::XYZ).2,
+            player.velocity,
+            time.delta(),
+            &MoveAndSlideConfig::default(),
+            &SpatialQueryFilter::from_excluded_entities([entity]),
+            |_hit| true,
+        );
+
+        // Update transform and stored velocity
+        transform.translation = position.extend(0.0).f32();
+        player.velocity = velocity.f32();
+    }
+}
+
+fn move_ai(mut paddles: Query<(&mut Paddle, &Position)>, ball: Single<&Position, With<Ball>>) {
+    let ball_y = ball.y;
+
+    for (mut paddle, position) in &mut paddles {
+        let difference = ball_y - position.y;
+        let distance = difference.abs();
+        if distance > PADDLE_DEADZONE {
+            let direction = difference.signum();
+
+            let speed =
+                PADDLE_MIN_SPEED + (PADDLE_MAX_SPEED - PADDLE_MIN_SPEED) * (distance / 100.0);
+
+            paddle.velocity.y = direction * speed;
+        } else {
+            paddle.velocity.y = 0.0;
+        }
+    }
 }
